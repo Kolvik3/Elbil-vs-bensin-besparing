@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8"/>
+<title>Elbil vs Bensinbil – Sparberäkning</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  body{font-family:Arial,system-ui;background:#0f172a;color:#e5e7eb;padding:18px}
+  .card{background:#111827;padding:14px;border-radius:10px;max-width:1200px;margin:12px auto}
+  label{display:block;margin-top:8px;font-size:0.95rem}
+  input,select{width:100%;padding:6px;border-radius:8px;border:1px solid #374151;background:#0b1220;color:#e5e7eb}
+  button{margin-top:6px;margin-right:6px;padding:6px 12px;border-radius:8px;border:none;background:#16a34a;color:#fff;cursor:pointer}
+  button.active{background:#22c55e}
+  table{width:100%;border-collapse:collapse;margin-top:14px;font-size:0.85rem}
+  th,td{border:1px solid #374151;padding:6px;text-align:center;vertical-align:top}
+  /* mini-chart storlek - samma för båda diagrammen */
+  .mini-chart{width:200px;height:120px}
+  .summary{margin-top:10px;font-weight:bold}
+  .export-buttons{margin-top:10px}
+  @media (max-width: 600px) {
+    .card {padding: 8px; margin: 6px;}
+    table {font-size: 0.7rem; display:block; overflow-x:auto;}
+    .mini-chart {width:140px; height:90px;}
+    button {padding:4px 8px;font-size:0.8rem;}
+  }
+
+@media (max-width: 768px) {
+  body { font-size: 0.9rem; padding: 8px; }
+  table { display:block; overflow-x:auto; white-space:nowrap; }
+  th, td { font-size:0.75rem; padding:4px; }
+  input, select, button { width:100%; margin-bottom:8px; font-size:1rem; }
+  .mini-chart { width:120px; height:80px; }
+}
+
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>Elbil vs Bensinbil</h2>
+
+  <label>Beräkningsläge
+    <select id="calcMode">
+      <option value="distance">Körsträcka per månad (km)</option>
+      <option value="energy">Laddade kWh per månad</option>
+    </select>
+  </label>
+
+  <label>År <input id="year" type="number" value="2025"></label>
+  <label>Månad 
+    <select id="month">
+      <option>Januari</option><option>Februari</option><option>Mars</option>
+      <option>April</option><option>Maj</option><option>Juni</option>
+      <option>Juli</option><option>Augusti</option><option>September</option>
+      <option>Oktober</option><option>November</option><option>December</option>
+    </select>
+  </label>
+
+  <div id="distanceInputs">
+    <label>Körsträcka per månad (km) <input id="km" type="number" value="1500"></label>
+  </div>
+  <div id="energyInputs" style="display:none">
+    <label>Laddade kWh per månad <input id="kwh_month" type="number" value="250"></label>
+    <label>Publikt laddade kWh <input id="kwh_pub" type="number" value="50"></label>
+  </div>
+
+  <label>Elbilens förbrukning (kWh/100 km) <input id="ev_kwh" type="number" value="17.5"></label>
+  <label>Laddförluster (%) <input id="loss" type="number" value="10"></label>
+  <label>Elpris hemmaladdning (kr/kWh) <input id="elpris_home" type="number" step="0.01" value="1.8"></label>
+  <label>Elpris publik laddning (kr/kWh) <input id="elpris_pub" type="number" step="0.01" value="4.0"></label>
+  <label>Bensinbilens förbrukning (l/100 km) <input id="ice_l" type="number" value="7.0"></label>
+  <label>Bensinpris (kr/l) <input id="bensin" type="number" step="0.01" value="21.9"></label>
+
+  <button id="calc">Beräkna och spara</button>
+
+  <h3>Historik</h3>
+  <label>Filter år <select id="yearFilter"><option value="">Alla</option></select></label>
+  <label>Filter månad <select id="monthFilter"><option value="">Alla</option>
+    <option>Januari</option><option>Februari</option><option>Mars</option>
+    <option>April</option><option>Maj</option><option>Juni</option>
+    <option>Juli</option><option>Augusti</option><option>September</option>
+    <option>Oktober</option><option>November</option><option>December</option>
+  </select></label>
+
+  <table id="historyTable">
+    <thead>
+      <tr>
+        <th>År</th><th>Månad</th><th>Körning (km)</th><th>Laddat (kWh)</th>
+        <th>Hemmaladdning (kWh)</th><th>Publikt (kWh)</th>
+        <th>Elkostnad (kr)</th><th>Bensinkostnad (kr)</th>
+        <th>Bensin (liter)</th><th>Skillnad (kr)</th>
+        <th>Kostnadsdiagram</th><th>Energidiagram</th><th>Åtgärd</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  <div class="summary" id="summary"></div>
+
+  <div class="export-buttons">
+  <button id="exportExcel">Exportera till Excel</button>
+  <button id="exportPDF">Exportera till PDF</button>
+  <button id="saveHistory">Spara historik</button>
+  <input type="file" id="loadHistory" style="display:none"/>
+  <button id="loadHistoryBtn">Hämta historik</button>
+</div>
+
+  <h3>Huvuddiagram</h3>
+  <div>
+    <button id="showCost" class="active">Visa Sparande (kr)</button>
+    <button id="showEnergy">Visa Energi (kWh/liter)</button>
+  </div>
+  <canvas id="historyChart" width="850" height="350"></canvas>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+function uid(){return Math.random().toString(36).substr(2,9)}
+function getHistory(){return JSON.parse(localStorage.getItem('hist')||'[]')}
+function setHistory(h){localStorage.setItem('hist',JSON.stringify(h))}
+function clamp(v,min,max){return Math.min(Math.max(v,min),max)}
+function fmt(n,dec=1){return isFinite(n)?Number(n.toFixed(dec)).toLocaleString('sv-SE'):'–'}
+
+let costCharts={}, energyCharts={}, historyChart, chartMode=localStorage.getItem('chartMode')||'cost';
+
+$('calcMode').addEventListener('change',()=>{
+  $('distanceInputs').style.display=$('calcMode').value==='distance'?'block':'none';
+  $('energyInputs').style.display=$('calcMode').value==='energy'?'block':'none';
+});
+
+function calculateValues(){
+  const year=parseInt($('year').value);
+  const month=$('month').value;
+  const mode=$('calcMode').value;
+
+  const ev_kwh=parseFloat($('ev_kwh').value);
+  const loss=clamp(parseFloat($('loss').value)/100,0,0.6);
+  const elpris_home=parseFloat($('elpris_home').value);
+  const elpris_pub=parseFloat($('elpris_pub').value);
+  const ice_l=parseFloat($('ice_l').value);
+  const bensin=parseFloat($('bensin').value);
+
+  let km=0, kwh_used=0, kwh_pub=0;
+  if(mode==='distance'){
+    km=parseFloat($('km').value);
+    kwh_used=(km/100)*ev_kwh/(1-loss);
+    kwh_pub=parseFloat($('kwh_pub').value);
+  }else{
+    kwh_used=parseFloat($('kwh_month').value);
+    kwh_pub=parseFloat($('kwh_pub').value);
+    km=kwh_used*(1-loss)*100/ev_kwh;
+  }
+  kwh_pub=clamp(kwh_pub,0,kwh_used);
+  const kwh_home = kwh_used - kwh_pub;
+
+  const homeCost = kwh_home * elpris_home;
+  const pubCost  = kwh_pub  * elpris_pub;
+  const evCost = homeCost + pubCost;
+  const iceCost=(km/100)*ice_l*bensin;
+  const diff=iceCost-evCost;
+  const litre_equiv=(km/100)*ice_l;
+
+  return {id:uid(),year,month,mode,km,kwh_used,kwh_home,kwh_pub,evCost,iceCost,diff,
+          ev_kwh,loss,elpris_home,elpris_pub,ice_l,bensin,litre_equiv};
+}
+
+// Populate year filter
+function populateYearFilter(){
+  const hist=getHistory();
+  const years=[...new Set(hist.map(h=>h.year))];
+  $('yearFilter').innerHTML='<option value="">Alla</option>'+years.map(y=>`<option>${y}</option>`).join('');
+}
+
+// Filtered history
+function filteredHistory(){
+  const hist=getHistory();
+  const yf=$('yearFilter').value, mf=$('monthFilter').value;
+  return hist.filter(h=>(!yf||h.year==yf)&&(!mf||h.month==mf));
+}
+
+// Summary
+function updateSummary(hist){
+  const total=hist.reduce((sum,h)=>sum+h.diff,0);
+  const avg=hist.length?total/hist.length:0;
+  $('summary').innerText=`Totalt sparande: ${fmt(total,0)} kr | Snitt per månad: ${fmt(avg,0)} kr`;
+}
+
+// Update history table and mini charts
+function updateHistoryTable(){
+  const hist=filteredHistory();
+  const tbody=$('historyTable').querySelector('tbody');
+  tbody.innerHTML='';
+  hist.forEach(h=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td>${h.year}</td><td>${h.month}</td>
+      <td>${fmt(h.km,0)}</td><td>${fmt(h.kwh_used,1)}</td>
+      <td>${fmt(h.kwh_home,1)}</td><td>${fmt(h.kwh_pub,1)}</td>
+      <td>${fmt(h.evCost,0)}</td><td>${fmt(h.iceCost,0)}</td>
+      <td>${fmt(h.litre_equiv,1)}</td><td>${fmt(h.diff,0)}</td>
+      <td><canvas class="mini-chart" id="cost-${h.id}"></canvas></td>
+      <td><canvas class="mini-chart" id="energy-${h.id}"></canvas></td>
+      <td><button data-id="${h.id}" class="edit-btn">Redigera</button>
+          <button data-id="${h.id}" class="delete-btn">Ta bort</button></td>`;
+    tbody.appendChild(tr);
+
+    // --- Mini cost chart (proportionell) ---
+    const ctx1=document.getElementById(`cost-${h.id}`).getContext('2d');
+    const maxValCost = Math.max(h.evCost, h.iceCost, Math.max(0, h.diff));
+    costCharts[h.id] = new Chart(ctx1, {
+      type: 'bar',
+      data: {
+        labels: ['','', ''],
+        datasets: [{ label:'', data:[h.evCost, h.iceCost, h.diff], backgroundColor:['#16a34a','#ef4444','#facc15'] }]
+      },
+      options: {
+        responsive: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function(ctx){ const texts=['El (hemmaladdning)','Bensin','Sparande']; return texts[ctx.dataIndex]+': '+fmt(ctx.raw,0)+' kr'; }
+            }
+          }
+        },
+        scales: {
+          x:{ display:false },
+          y:{ display:true, beginAtZero:true, max: (maxValCost>0? maxValCost*1.1: 1) }
+        }
+      }
+    });
+
+    // --- Mini energy chart (samma pixelstorlek + proportionell y) ---
+    const ctx2=document.getElementById(`energy-${h.id}`).getContext('2d');
+    const maxValEnergy = Math.max(h.kwh_home, h.kwh_pub, 0.0001);
+    energyCharts[h.id] = new Chart(ctx2, {
+      type: 'bar',
+      data: {
+        labels: ['',''],
+        datasets: [{ label:'', data:[h.kwh_home, h.kwh_pub], backgroundColor:['#3b82f6','#facc15'] }]
+      },
+      options: {
+        responsive: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function(ctx){ return (ctx.dataIndex===0? 'HemmalkWh':'Publikt kWh')+': '+fmt(ctx.raw,1)+' kWh'; }
+            }
+          }
+        },
+        scales: {
+          x:{ display:false },
+          y:{ display:true, beginAtZero:true, max: (maxValEnergy>0? maxValEnergy*1.1: 1) }
+        }
+      }
+    });
+
+  });
+  updateHistoryChart(hist);
+  updateSummary(hist);
+}
+
+// Make tbody sortable (drag & drop)
+const tbodySortable = document.querySelector('#historyTable tbody');
+new Sortable(tbodySortable, {
+  animation: 150,
+  onEnd: function(){
+    const rows=[...tbodySortable.querySelectorAll('tr')];
+    const newHist=[];
+    rows.forEach(row=>{
+      const id=row.querySelector('button')?.dataset?.id;
+      if(!id) return;
+      const h=getHistory().find(item=>item.id===id);
+      if(h) newHist.push(h);
+    });
+    setHistory(newHist);
+    updateHistoryTable();
+  }
+});
+
+// Main history chart with combined tooltip info
+function updateHistoryChart(hist){
+  const ctx=$('historyChart').getContext('2d');
+  if(historyChart) historyChart.destroy();
+  if(chartMode==='cost'){
+    historyChart=new Chart(ctx,{
+      type:'line',
+      data:{ labels: hist.map(h=>`${h.month} ${h.year}`), datasets:[{label:'Sparat (kr)', data: hist.map(h=>h.diff), borderColor:'#16a34a', tension:0.3}] },
+      options:{ plugins:{ tooltip:{ callbacks:{ label:function(context){ const h=hist[context.dataIndex]; return ['Sparande: '+fmt(h.diff,0)+' kr','HemmalkWh: '+fmt(h.kwh_home,1),'Publikt kWh: '+fmt(h.kwh_pub,1)]; }}}}, responsive:true }
+    });
+  } else {
+    historyChart=new Chart(ctx,{
+      type:'line',
+      data:{ labels: hist.map(h=>`${h.month} ${h.year}`), datasets:[
+        {label:'HemmalkWh', data: hist.map(h=>h.kwh_home), borderColor:'#3b82f6', tension:0.3},
+        {label:'Publikt kWh', data: hist.map(h=>h.kwh_pub), borderColor:'#facc15', tension:0.3}
+      ]},
+      options:{ plugins:{ tooltip:{ callbacks:{ label:function(context){ const h=hist[context.dataIndex]; return context.dataset.label + ': ' + fmt(context.raw,1) + ' kWh | Sparande: ' + fmt(h.diff,0) + ' kr'; }}}}, responsive:true }
+    });
+  }
+}
+
+// Event listeners: calculate, edit, delete, filters, export
+$('calc').addEventListener('click',()=>{
+  const vals=calculateValues();
+  const hist=getHistory(); hist.push(vals); setHistory(hist);
+  populateYearFilter(); updateHistoryTable();
+});
+
+document.querySelector('#historyTable').addEventListener('click', (e)=>{
+  const id=e.target.dataset.id; if(!id) return;
+  const hist=getHistory(); const idx=hist.findIndex(h=>h.id===id);
+  if(idx<0) return;
+  if(e.target.classList.contains('delete-btn')){
+    hist.splice(idx,1); setHistory(hist); updateHistoryTable();
+  } else if(e.target.classList.contains('edit-btn')){
+    const h=hist[idx];
+    $('year').value=h.year; $('month').value=h.month;
+    $('calcMode').value=h.mode; $('calcMode').dispatchEvent(new Event('change'));
+    if(h.mode==='distance') $('km').value=h.km; else {$('kwh_month').value=h.kwh_used;$('kwh_pub').value=h.kwh_pub;}
+    $('ev_kwh').value=h.ev_kwh; $('loss').value=h.loss*100;
+    $('elpris_home').value=h.elpris_home; $('elpris_pub').value=h.elpris_pub;
+    $('ice_l').value=h.ice_l; $('bensin').value=h.bensin;
+    hist.splice(idx,1); setHistory(hist); updateHistoryTable();
+  }
+});
+
+$('yearFilter').addEventListener('change',updateHistoryTable);
+$('monthFilter').addEventListener('change',updateHistoryTable);
+
+$('showCost').addEventListener('click',()=>{
+  chartMode='cost'; localStorage.setItem('chartMode','cost');
+  $('showCost').classList.add('active'); $('showEnergy').classList.remove('active');
+  updateHistoryChart(filteredHistory());
+});
+$('showEnergy').addEventListener('click',()=>{
+  chartMode='energy'; localStorage.setItem('chartMode','energy');
+  $('showEnergy').classList.add('active'); $('showCost').classList.remove('active');
+  updateHistoryChart(filteredHistory());
+});
+
+// Excel export
+$('exportExcel').addEventListener('click',()=>{
+  const hist=getHistory();
+  if(!hist.length) return alert('Ingen data att exportera');
+  const ws=XLSX.utils.json_to_sheet(hist);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Historik');
+  XLSX.writeFile(wb,'Elbil_vs_Bensin.xlsx');
+});
+
+// PDF export
+$('exportPDF').addEventListener('click',()=>{
+  const hist=filteredHistory();
+  if(!hist.length) return alert('Ingen data att exportera');
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  let y=10; doc.setFontSize(10);
+  doc.text('Elbil vs Bensinbil Historik',10,y); y+=6;
+  hist.forEach(h=>{
+    doc.text(`${h.year}-${h.month}: Sparande ${fmt(h.diff,0)} kr | HemmalkWh ${fmt(h.kwh_home,1)} | Publikt kWh ${fmt(h.kwh_pub,1)}`,10,y); y+=5;
+  });
+  doc.text(`Totalt sparande: ${fmt(hist.reduce((s,h)=>s+h.diff,0),0)} kr`,10,y+2);
+  doc.save('Elbil_vs_Bensin.pdf');
+});
+
+// --- Spara historik till JSON-fil ---
+$('saveHistory').addEventListener('click',()=>{
+  const hist=getHistory();
+  if(!hist.length) return alert('Ingen historik att spara');
+  const blob=new Blob([JSON.stringify(hist,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download='historik.json';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+// --- Hämta historik från JSON-fil ---
+$('loadHistoryBtn').addEventListener('click',()=>{ $('loadHistory').click(); });
+$('loadHistory').addEventListener('change',e=>{
+  const file=e.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=function(ev){
+    try{
+      const data=JSON.parse(ev.target.result);
+      if(Array.isArray(data)){
+        setHistory(data);
+        populateYearFilter(); updateHistoryTable();
+        alert('Historik importerad!');
+      }else alert('Felaktig fil');
+    }catch(err){ alert('Kunde inte läsa filen'); }
+  };
+  reader.readAsText(file);
+});
+
+
+// Init
+populateYearFilter(); updateHistoryTable();
+
+</script>
+</body>
+</html>
