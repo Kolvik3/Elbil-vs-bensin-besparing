@@ -36,17 +36,6 @@
   .mini-chart { width:120px; height:80px; }
 }
 
-
-.history-wrapper {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  border: 1px solid #374151;
-  border-radius: 6px;
-}
-.history-wrapper table {
-  min-width: 1000px;
-}
-
 </style>
 </head>
 <body>
@@ -96,7 +85,6 @@
     <option>Oktober</option><option>November</option><option>December</option>
   </select></label>
 
-  <div class="history-wrapper">
   <table id="historyTable">
     <thead>
       <tr>
@@ -109,7 +97,6 @@
     </thead>
     <tbody></tbody>
   </table>
-</div>
   <div class="summary" id="summary"></div>
 
   <div class="export-buttons">
