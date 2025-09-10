@@ -1,16 +1,6 @@
 <!DOCTYPE html>
 <html lang="sv">
 <head>
- <!-- iPhone / iPad App Icon -->
-<link rel="apple-touch-icon" href="icon.png">
-
-<!-- Namn när du lägger till på hemskärmen -->
-<meta name="apple-mobile-web-app-title" content="Elbil Kalkylator">
-
-<!-- Starta i fullskärmsläge -->
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta charset="utf-8"/>
 <title>Elbil vs Bensinbil – Sparberäkning</title>
@@ -44,6 +34,17 @@
   th, td { font-size:0.75rem; padding:4px; }
   input, select, button { width:100%; margin-bottom:8px; font-size:1rem; }
   .mini-chart { width:120px; height:80px; }
+}
+
+
+.history-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid #374151;
+  border-radius: 6px;
+}
+.history-wrapper table {
+  min-width: 1000px;
 }
 
 </style>
@@ -95,6 +96,7 @@
     <option>Oktober</option><option>November</option><option>December</option>
   </select></label>
 
+  <div class="history-wrapper">
   <table id="historyTable">
     <thead>
       <tr>
@@ -107,6 +109,7 @@
     </thead>
     <tbody></tbody>
   </table>
+</div>
   <div class="summary" id="summary"></div>
 
   <div class="export-buttons">
