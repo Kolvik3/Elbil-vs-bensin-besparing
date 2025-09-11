@@ -36,6 +36,22 @@
   .mini-chart { width:120px; height:80px; }
 }
 
+
+
+.drag-handle {
+  cursor: grab;
+  text-align: center;
+  width: 32px;
+  color: #333;
+  font-size: 1.6rem;
+  user-select: none;
+}
+.drag-handle:active {
+  cursor: grabbing;
+  color: #000;
+}
+
+
 </style>
 </head>
 <body>
@@ -194,7 +210,7 @@ function updateHistoryTable(){
   tbody.innerHTML='';
   hist.forEach(h=>{
     const tr=document.createElement('tr');
-    tr.innerHTML=`
+    tr.innerHTML=`<td class="drag-handle">⋮⋮⋮</td>
       <td>${h.year}</td><td>${h.month}</td>
       <td>${fmt(h.km,0)}</td><td>${fmt(h.kwh_used,1)}</td>
       <td>${fmt(h.kwh_home,1)}</td><td>${fmt(h.kwh_pub,1)}</td>
@@ -266,6 +282,7 @@ function updateHistoryTable(){
 // Make tbody sortable (drag & drop)
 const tbodySortable = document.querySelector('#historyTable tbody');
 new Sortable(tbodySortable, {
+      handle: '.drag-handle',
   animation: 150,
   onEnd: function(){
     const rows=[...tbodySortable.querySelectorAll('tr')];
