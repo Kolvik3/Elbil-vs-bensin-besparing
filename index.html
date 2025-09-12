@@ -3,7 +3,7 @@
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta charset="utf-8"/>
-<title>Elbil vs Bensinbil – Sparberäkning</title>
+<title>Elbil vs Fossilbil – Sparberäkning</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -58,7 +58,7 @@
 <link rel="apple-touch-icon" href="icon.png">
 
 <!-- Namn under app-ikonen -->
-<meta name="apple-mobile-web-app-title" content="Besparing">
+<meta name="apple-mobile-web-app-title" content="El vs Fossil Besparing">
 
 <!-- Gör så att sidan öppnas som en app utan Safari-UI -->
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -67,7 +67,7 @@
 </head>
 <body>
 <div class="card">
-  <h2>Elbil vs Bensinbil</h2>
+  <h2>Elbil vs Fossilbil</h2>
 
   <label>Beräkningsläge
     <select id="calcMode">
@@ -98,8 +98,8 @@
   <label>Laddförluster (%) <input id="loss" type="number" value="10"></label>
   <label>Elpris hemmaladdning (kr/kWh) <input id="elpris_home" type="number" step="0.01" value="1.8"></label>
   <label>Elpris publik laddning (kr/kWh) <input id="elpris_pub" type="number" step="0.01" value="4.0"></label>
-  <label>Bensinbilens förbrukning (l/100 km) <input id="ice_l" type="number" value="7.0"></label>
-  <label>Bensinpris (kr/l) <input id="bensin" type="number" step="0.01" value="21.9"></label>
+  <label>Fossilbilens förbrukning (l/100 km) <input id="ice_l" type="number" value="7.0"></label>
+  <label>Bränslepris (kr/l) <input id="bensin" type="number" step="0.01" value="21.9"></label>
 
   <button id="calc">Beräkna och spara</button>
 
@@ -118,7 +118,7 @@
         <th>År</th><th>Månad</th><th>Körning (km)</th><th>Laddat (kWh)</th>
         <th>Hemmaladdning (kWh)</th><th>Publikt (kWh)</th>
         <th>Elkostnad (kr)</th><th>Bensinkostnad (kr)</th>
-        <th>Bensin (liter)</th><th>Skillnad (kr)</th>
+        <th>Bränsle (liter)</th><th>Skillnad (kr)</th>
         <th>Kostnadsdiagram</th><th>Energidiagram</th><th>Åtgärd</th>
       </tr>
     </thead>
@@ -167,7 +167,7 @@ function calculateValues(){
   const elpris_home=parseFloat($('elpris_home').value);
   const elpris_pub=parseFloat($('elpris_pub').value);
   const ice_l=parseFloat($('ice_l').value);
-  const bensin=parseFloat($('bensin').value);
+  const bensin=parseFloat($('bränsle').value);
 
   let km=0, kwh_used=0, kwh_pub=0;
   if(mode==='distance'){
@@ -185,12 +185,12 @@ function calculateValues(){
   const homeCost = kwh_home * elpris_home;
   const pubCost  = kwh_pub  * elpris_pub;
   const evCost = homeCost + pubCost;
-  const iceCost=(km/100)*ice_l*bensin;
+  const iceCost=(km/100)*ice_l*bränsle;
   const diff=iceCost-evCost;
   const litre_equiv=(km/100)*ice_l;
 
   return {id:uid(),year,month,mode,km,kwh_used,kwh_home,kwh_pub,evCost,iceCost,diff,
-          ev_kwh,loss,elpris_home,elpris_pub,ice_l,bensin,litre_equiv};
+          ev_kwh,loss,elpris_home,elpris_pub,ice_l,bränsle,litre_equiv};
 }
 
 // Populate year filter
@@ -248,7 +248,7 @@ function updateHistoryTable(){
           legend: { display: false },
           tooltip: {
             callbacks: {
-              label: function(ctx){ const texts=['El (hemmaladdning)','Bensin','Sparande']; return texts[ctx.dataIndex]+': '+fmt(ctx.raw,0)+' kr'; }
+              label: function(ctx){ const texts=['El','Bränsle','Sparande']; return texts[ctx.dataIndex]+': '+fmt(ctx.raw,0)+' kr'; }
             }
           }
         },
@@ -387,12 +387,12 @@ $('exportPDF').addEventListener('click',()=>{
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
   let y=10; doc.setFontSize(10);
-  doc.text('Elbil vs Bensinbil Historik',10,y); y+=6;
+  doc.text('Elbil vs Fossilbil Historik',10,y); y+=6;
   hist.forEach(h=>{
     doc.text(`${h.year}-${h.month}: Sparande ${fmt(h.diff,0)} kr | HemmalkWh ${fmt(h.kwh_home,1)} | Publikt kWh ${fmt(h.kwh_pub,1)}`,10,y); y+=5;
   });
   doc.text(`Totalt sparande: ${fmt(hist.reduce((s,h)=>s+h.diff,0),0)} kr`,10,y+2);
-  doc.save('Elbil_vs_Bensin.pdf');
+  doc.save('Elbil_vs_Fossilbil.pdf');
 });
 
 // --- Spara historik till JSON-fil ---
