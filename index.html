@@ -193,7 +193,7 @@ function calculateValues(){
   const homeCost = kwh_home * elpris_home;
   const pubCost  = kwh_pub  * elpris_pub;
   const evCost = homeCost + pubCost;
-  const iceCost=(km/100)*ice_l*bränsle;
+  const iceCost=(km/100)*ice_l*bensin;
   const diff=iceCost-evCost;
   const litre_equiv=(km/100)*ice_l;
 
