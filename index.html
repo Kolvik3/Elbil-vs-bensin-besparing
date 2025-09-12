@@ -175,7 +175,7 @@ function calculateValues(){
   const elpris_home=parseFloat($('elpris_home').value);
   const elpris_pub=parseFloat($('elpris_pub').value);
   const ice_l=parseFloat($('ice_l').value);
-  const bensin=parseFloat($('bränsle').value);
+  const bensin=parseFloat($('bensin').value);
 
   let km=0, kwh_used=0, kwh_pub=0;
   if(mode==='distance'){
@@ -198,7 +198,7 @@ function calculateValues(){
   const litre_equiv=(km/100)*ice_l;
 
   return {id:uid(),year,month,mode,km,kwh_used,kwh_home,kwh_pub,evCost,iceCost,diff,
-          ev_kwh,loss,elpris_home,elpris_pub,ice_l,bränsle,litre_equiv};
+          ev_kwh,loss,elpris_home,elpris_pub,ice_l,bensin,litre_equiv};
 }
 
 // Populate year filter
